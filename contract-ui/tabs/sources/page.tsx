@@ -20,7 +20,8 @@ import { SourcesPanel } from "components/contract-components/shared/sources-pane
 import { Abi } from "components/contract-components/types";
 import { useContractSources } from "contract-ui/hooks/useContractSources";
 import { useRouter } from "next/router";
-import { VerificationStatus, blockExplorerMap } from "pages/api/verify";
+import { blockExplorerMap } from "pages/api/etherscan/common";
+import { VerificationStatus } from "pages/api/etherscan/verify";
 import { useMemo } from "react";
 import { FiCheckCircle, FiXCircle } from "react-icons/fi";
 import { Badge, Button, Card, Heading, LinkButton } from "tw-components";
@@ -34,7 +35,7 @@ function useVerifyCall(shouldFetch: boolean, contractAddress?: string) {
   return useQueryWithNetwork(
     ["verify", contractAddress],
     async () => {
-      const response = await fetch("/api/verify", {
+      const response = await fetch("/api/etherscan/verify", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -58,7 +59,7 @@ function useCheckVerificationStatus(guid?: string) {
     ["verifycheck", guid],
     async () => {
       const response = await fetch(
-        `/api/check-verification-status?guid=${guid}&chainId=${chainId}`,
+        `/api/etherscan/check-verification-status?guid=${guid}&chainId=${chainId}`,
       );
       return response.json();
     },

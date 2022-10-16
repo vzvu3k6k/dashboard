@@ -62,6 +62,7 @@
     "react-twemoji": "^0.5.0",
     "react-vis": "^1.11.7",
     "remark-gfm": "^3.0.1",
+    "solc": "^0.8.17",
     "spdx-correct": "^3.1.1",
     "tiny-invariant": "^1.2.0",
     "zod": "^3.8.2"

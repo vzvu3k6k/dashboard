@@ -1,4 +1,4 @@
-import { apiKeyMap, apiMap } from "./verify";
+import { apiKeyMap, apiMap } from "./common";
 import { withSentry } from "@sentry/nextjs";
 import { ChainId } from "@thirdweb-dev/sdk/evm";
 import { NextApiRequest, NextApiResponse } from "next";
