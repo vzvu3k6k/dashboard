@@ -1,4 +1,4 @@
-import { Stack } from "@chakra-ui/react";
+import { Stack, useModalContext } from "@chakra-ui/react";
 import { useBurnNFT } from "@thirdweb-dev/react/solana";
 import type { NFTCollection, NFTDrop } from "@thirdweb-dev/sdk/solana";
 import { TransactionButton } from "components/buttons/TransactionButton";
@@ -13,6 +13,7 @@ interface BurnTabProps {
 
 export const BurnTab: React.FC<BurnTabProps> = ({ program, tokenId }) => {
   const trackEvent = useTrack();
+  const modalContext = useModalContext();
 
   const burn = useBurnNFT(program);
 
@@ -47,6 +48,7 @@ export const BurnTab: React.FC<BurnTabProps> = ({ program, tokenId }) => {
                 label: "success",
               });
               onSuccess();
+              modalContext.onClose();
             },
             onError: (error) => {
               trackEvent({

@@ -1,4 +1,4 @@
-import { FormControl, Input, Stack } from "@chakra-ui/react";
+import { FormControl, Input, Stack, useModalContext } from "@chakra-ui/react";
 import { PublicKey } from "@solana/web3.js";
 import { useTransferNFT } from "@thirdweb-dev/react/solana";
 import type { NFTCollection, NFTDrop } from "@thirdweb-dev/sdk/solana";
@@ -18,11 +18,11 @@ export const TransferTab: React.FC<TransferTabProps> = ({
   tokenId,
 }) => {
   const trackEvent = useTrack();
+  const modalContext = useModalContext();
   const {
     register,
     handleSubmit,
     formState: { errors, isDirty },
-    reset,
   } = useForm<{ to: string; amount: string }>({
     defaultValues: { to: "", amount: "1" },
   });
@@ -55,7 +55,7 @@ export const TransferTab: React.FC<TransferTabProps> = ({
                   label: "success",
                 });
                 onSuccess();
-                reset();
+                modalContext.onClose();
               },
               onError: (error) => {
                 trackEvent({

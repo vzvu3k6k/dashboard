@@ -17,6 +17,7 @@ import {
   Select,
   Spinner,
   Stack,
+  useModalContext,
 } from "@chakra-ui/react";
 import {
   DropContract,
@@ -68,6 +69,7 @@ export const ClaimConditions: React.FC<ClaimConditionsProps> = ({
   isColumn,
 }) => {
   const trackEvent = useTrack();
+  const modalContext = useModalContext();
   const resetClaimConditions = useResetClaimConditions(contract, tokenId);
   const { onSuccess, onError } = useTxNotifications(
     "Successfully reset claim eligibility",
@@ -148,6 +150,7 @@ export const ClaimConditions: React.FC<ClaimConditionsProps> = ({
                         label: "success",
                       });
                       onSuccess();
+                      modalContext.onClose();
                     },
                     onError: (error) => {
                       trackEvent({

@@ -1,4 +1,4 @@
-import { FormControl, Input, Stack } from "@chakra-ui/react";
+import { FormControl, Input, Stack, useModalContext } from "@chakra-ui/react";
 import { useAddress, useMintNFTSupply } from "@thirdweb-dev/react";
 import { Erc1155 } from "@thirdweb-dev/sdk/evm";
 import { TransactionButton } from "components/buttons/TransactionButton";
@@ -17,11 +17,11 @@ export const MintSupplyTab: React.FC<MintSupplyTabProps> = ({
   tokenId,
 }) => {
   const trackEvent = useTrack();
+  const modalContext = useModalContext();
   const {
     register,
     handleSubmit,
     formState: { errors, isDirty },
-    reset,
   } = useForm<{ to: string; amount: string }>({
     defaultValues: { amount: "1" },
   });
@@ -58,7 +58,7 @@ export const MintSupplyTab: React.FC<MintSupplyTabProps> = ({
                     label: "success",
                   });
                   onSuccess();
-                  reset();
+                  modalContext.onClose();
                 },
                 onError: (error) => {
                   trackEvent({

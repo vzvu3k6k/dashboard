@@ -1,4 +1,10 @@
-import { Flex, Icon, Stack, useDisclosure } from "@chakra-ui/react";
+import {
+  Flex,
+  Icon,
+  Stack,
+  useDisclosure,
+  useModalContext,
+} from "@chakra-ui/react";
 import { useAddress, useAirdropNFT } from "@thirdweb-dev/react";
 import { Erc1155 } from "@thirdweb-dev/sdk/evm";
 import { TransactionButton } from "components/buttons/TransactionButton";
@@ -22,8 +28,9 @@ export const AirdropTab: React.FC<AirdropTabProps> = ({
   contract,
   tokenId,
 }) => {
+  const modalContext = useModalContext();
   const address = useAddress();
-  const { handleSubmit, setValue, watch, reset, formState } = useForm<{
+  const { handleSubmit, setValue, watch, formState } = useForm<{
     addresses: AirdropAddressInput[];
   }>({
     defaultValues: { addresses: [] },
@@ -67,7 +74,7 @@ export const AirdropTab: React.FC<AirdropTabProps> = ({
                   token_id: tokenId,
                 });
                 onSuccess();
-                reset();
+                modalContext.onClose();
               },
               onError: (error) => {
                 trackEvent({

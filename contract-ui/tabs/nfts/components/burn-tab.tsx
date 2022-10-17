@@ -1,4 +1,4 @@
-import { FormControl, Input, Stack } from "@chakra-ui/react";
+import { FormControl, Input, Stack, useModalContext } from "@chakra-ui/react";
 import { NFTContract, useBurnNFT } from "@thirdweb-dev/react";
 import { TransactionButton } from "components/buttons/TransactionButton";
 import { detectFeatures } from "components/contract-components/utils";
@@ -18,13 +18,13 @@ interface BurnTabProps {
 }
 
 export const BurnTab: React.FC<BurnTabProps> = ({ contract, tokenId }) => {
+  const modalContext = useModalContext();
   const trackEvent = useTrack();
   const {
     register,
     handleSubmit,
     watch,
     formState: { errors },
-    reset,
   } = useForm<{ to: string; amount: string }>({
     defaultValues: { amount: "1" },
   });
@@ -61,7 +61,7 @@ export const BurnTab: React.FC<BurnTabProps> = ({ contract, tokenId }) => {
                   label: "success",
                 });
                 onSuccess();
-                reset();
+                modalContext.onClose();
               },
               onError: (error) => {
                 trackEvent({

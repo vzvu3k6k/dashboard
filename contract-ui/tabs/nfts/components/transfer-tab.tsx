@@ -1,4 +1,4 @@
-import { FormControl, Input, Stack } from "@chakra-ui/react";
+import { FormControl, Input, Stack, useModalContext } from "@chakra-ui/react";
 import { NFTContract, useTransferNFT } from "@thirdweb-dev/react";
 import { TransactionButton } from "components/buttons/TransactionButton";
 import { detectFeatures } from "components/contract-components/utils";
@@ -18,11 +18,11 @@ export const TransferTab: React.FC<TransferTabProps> = ({
   tokenId,
 }) => {
   const trackEvent = useTrack();
+  const modalContext = useModalContext();
   const {
     register,
     handleSubmit,
     formState: { errors, isDirty },
-    reset,
   } = useForm<{ to: string; amount: string }>({
     defaultValues: { to: "", amount: "1" },
   });
@@ -59,7 +59,7 @@ export const TransferTab: React.FC<TransferTabProps> = ({
                   label: "success",
                 });
                 onSuccess();
-                reset();
+                modalContext.onClose();
               },
               onError: (error) => {
                 trackEvent({

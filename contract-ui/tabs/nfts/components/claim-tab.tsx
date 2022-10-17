@@ -1,4 +1,4 @@
-import { FormControl, Input, Stack } from "@chakra-ui/react";
+import { FormControl, Input, Stack, useModalContext } from "@chakra-ui/react";
 import { DropContract, useAddress, useClaimNFT } from "@thirdweb-dev/react";
 import { TransactionButton } from "components/buttons/TransactionButton";
 import { constants } from "ethers";
@@ -14,12 +14,12 @@ interface ClaimTabProps {
 
 export const ClaimTab: React.FC<ClaimTabProps> = ({ contract, tokenId }) => {
   const trackEvent = useTrack();
+  const modalContext = useModalContext();
   const address = useAddress();
   const {
     register,
     handleSubmit,
     formState: { errors },
-    reset,
   } = useForm<{ to: string; amount: string }>({
     defaultValues: { amount: "1", to: address },
   });
@@ -55,7 +55,7 @@ export const ClaimTab: React.FC<ClaimTabProps> = ({ contract, tokenId }) => {
                     label: "success",
                   });
                   onSuccess();
-                  reset();
+                  modalContext.onClose();
                 },
                 onError: (error) => {
                   trackEvent({
