@@ -198,6 +198,7 @@ const ClaimConditionsForm: React.FC<ClaimConditionsProps> = ({
   isColumn,
 }) => {
   const trackEvent = useTrack();
+  const modalContext = useModalContext();
   const [resetFlag, setResetFlag] = useState(false);
   const isAdmin = useIsAdmin(contract);
 
@@ -320,6 +321,7 @@ const ClaimConditionsForm: React.FC<ClaimConditionsProps> = ({
                   });
                   form.reset({ phases: variables.phases });
                   onSuccess();
+                  modalContext.onClose();
                 },
                 onError: (error) => {
                   trackEvent({
