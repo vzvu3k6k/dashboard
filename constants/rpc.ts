@@ -62,8 +62,14 @@ export const EVM_RPC_URL_MAP: Record<SUPPORTED_CHAIN_ID, string> = addAPIKey({
 });
 
 const SOLANA_RPC_URL_MAP: Record<DashboardSolanaNetwork, string> = addAPIKey({
-  "mainnet-beta": `https://solana-mainnet.g.alchemy.com/v2/`,
-  devnet: `https://solana-devnet.g.alchemy.com/v2/`,
+  "mainnet-beta":
+    process.env.SSR_RPC_SOLANA ||
+    process.env.NEXT_PUBLIC_RPC_SOLANA ||
+    `https://solana-mainnet.g.alchemy.com/v2/`,
+  devnet:
+    process.env.SSR_RPC_SOLANA_DEVNET ||
+    process.env.NEXT_PUBLIC_RPC_SOLANA_DEVNET ||
+    `https://solana-devnet.g.alchemy.com/v2/`,
 });
 
 function addAPIKey<T extends string | number>(
