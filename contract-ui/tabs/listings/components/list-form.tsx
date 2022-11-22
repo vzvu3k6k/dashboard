@@ -366,7 +366,7 @@ export const CreateListingsForm: React.FC<NFTMintForm> = ({
             : "The price of each token you are listing for sale."}
         </FormHelperText>
       </FormControl>
-      {watch("selected")?.type.toLowerCase() !== "erc721" && (
+      {watch("selected")?.type?.toLowerCase() !== "erc721" && (
         <FormControl isRequired isDisabled={noNfts}>
           <Stack justify="space-between" direction="row">
             <Heading as={FormLabel} size="label.lg">
@@ -374,7 +374,7 @@ export const CreateListingsForm: React.FC<NFTMintForm> = ({
             </Heading>
             {/* {watch("selected") && (
                   <Text
-                    color="blue.400"
+                    color="primary.400"
                     cursor="pointer"
                     _hover={{ textDecor: "underline" }}
                   >
