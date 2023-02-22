@@ -14,6 +14,13 @@ import {
   Tooltip,
 } from "@chakra-ui/react";
 import { Chain, allChains } from "@thirdweb-dev/chains";
+import {
+  ChainId,
+  useAddress,
+  useConnect,
+  useNetwork,
+  useSigner,
+} from "@thirdweb-dev/react";
 import { ClientOnly } from "components/ClientOnly/ClientOnly";
 import { AppLayout } from "components/app-layouts/app";
 import { ChainIcon } from "components/icons/ChainIcon";
@@ -23,15 +30,17 @@ import { GetStaticProps, InferGetStaticPropsType } from "next";
 import { NextSeo } from "next-seo";
 import { PageId } from "page-id";
 import { memo, useDeferredValue, useMemo, useState } from "react";
-import { FiArrowUpRight, FiCheckCircle, FiSearch } from "react-icons/fi";
+import { FiArrowUpRight, FiPlusCircle, FiSearch } from "react-icons/fi";
 import {
   Card,
   Heading,
   Text,
   TrackedCopyButton,
+  TrackedIconButton,
   TrackedLink,
 } from "tw-components";
 import { ThirdwebNextPage } from "utils/types";
+import { useProvider } from "wagmi";
 
 const TRACKING_CATEGORY = "chains";
 
@@ -194,7 +203,7 @@ const SearchResult: React.FC<{
             opacity: 1,
           }}
         />
-        <Flex justifyContent="space-between" align="center">
+        <Flex justifyContent="space-between" align="center" alignItems="center">
           <Flex align="center" gap={2}>
             <ChainIcon size={20} ipfsSrc={chain.iconUrl} />
             <LinkOverlay
@@ -209,22 +218,7 @@ const SearchResult: React.FC<{
           </Flex>
           {/* we don't know this state until we're on the client so have to wrap in client only */}
           <ClientOnly ssr={null}>
-            {chain.isAddedToDashboard ? (
-              <Tooltip
-                p={0}
-                bg="transparent"
-                boxShadow="none"
-                label={
-                  <Card py={2} px={4}>
-                    <Text size="label.sm">Added to dashboard</Text>
-                  </Card>
-                }
-                borderRadius="lg"
-                shouldWrapChildren
-              >
-                <Icon as={FiCheckCircle} color="green.500" />
-              </Tooltip>
-            ) : null}
+            <AddToWalletButton chain={chain} />
           </ClientOnly>
         </Flex>
 
@@ -271,6 +265,91 @@ const SearchResult: React.FC<{
   );
 });
 
+interface AddToWalletButtonProps {
+  chain: MinimalRPCChainWithDashboardStatus;
+}
+
+const AddToWalletButton: React.FC<AddToWalletButtonProps> = ({ chain }) => {
+  /*   const [, switchNetwork] = useNetwork();
+  console.log({ switchNetwork }); */
+
+  /*   const signer = useSigner();
+  const provider = useProvider(); */
+  const address = useAddress();
+
+  const [connector] = useConnect();
+
+  /*   console.log({ connector }); */
+
+  const provider = connector.data.connector?.getProvider();
+
+  const toHex = (num: number) => {
+    return `0x${num.toString(16)}`;
+  };
+
+  /*   console.log([`https://${chain.slug}.rpc.thirdweb.com`]); */
+
+  const params = {
+    chainId: toHex(chain.chainId),
+    chainName: chain.name,
+    rpcUrls: chain.hasRpc
+      ? [`https://${chain.slug}.rpc.thirdweb.com`]
+      : ((chain as any).rpc as string[]),
+    nativeCurrency: (chain as any).nativeCurrency,
+    /*     blockExplorerUrls: [
+      chain.explorers && chain.explorers.length > 0 && chain.explorers[0].url
+        ? chain.explorers[0].url
+        : chain.infoURL,
+    ], */
+  };
+
+  /*   console.log((chain as any).rpcUrls); */
+
+  return (
+    <Tooltip
+      p={0}
+      bg="transparent"
+      boxShadow="none"
+      label={
+        <Card py={2} px={4}>
+          <Text size="label.sm">Add to wallet</Text>
+        </Card>
+      }
+      borderRadius="lg"
+      shouldWrapChildren
+    >
+      <TrackedIconButton
+        variant="ghost"
+        category={TRACKING_CATEGORY}
+        label="add-to-wallet"
+        aria-label="Add to wallet"
+        icon={<Icon as={FiPlusCircle} boxSize={6} />}
+        color="green.500"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          /*           if (switchNetwork) {
+            switchNetwork(chainId as ChainId);
+          } */
+          console.log("adding");
+          if (provider && address) {
+            console.log("inside if");
+            provider.request({
+              method: "wallet_addEthereumChain",
+              params: [
+                {
+                  ...params,
+                  nativeCurrency: { ...params.nativeCurrency, decimals: 18 },
+                },
+              ],
+            });
+          }
+        }}
+      />
+    </Tooltip>
+  );
+};
+
 ChainsLanding.getLayout = (page, props) => (
   <AppLayout {...props}>{page}</AppLayout>
 );
@@ -298,6 +377,13 @@ export const getStaticProps: GetStaticProps<DashboardRPCProps> = async () => {
       slug: chain.slug,
       name: chain.name,
       chainId: chain.chainId,
+      chainName: chain.name,
+      nativeCurrency: {
+        name: chain.nativeCurrency.name,
+        symbol: chain.nativeCurrency.symbol,
+        decimals: 18 as const,
+      },
+      rpc: chain.rpc,
       iconUrl: "icon" in chain ? chain.icon.url : "",
       symbol: chain.nativeCurrency.symbol,
       hasRpc:
