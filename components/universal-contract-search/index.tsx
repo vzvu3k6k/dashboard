@@ -1,3 +1,5 @@
+import { FacetFilter } from "./facet-filter";
+import { SearchDocument, TypesenseResult } from "./typesense-types";
 import {
   Box,
   ButtonGroup,
@@ -16,23 +18,11 @@ import {
   ModalOverlay,
   Spinner,
 } from "@chakra-ui/react";
-import {
-  QueryClient,
-  useQueries,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-import { Chain } from "@thirdweb-dev/chains";
-import { useAddress } from "@thirdweb-dev/react";
-import { fetchEns } from "components/contract-components/hooks";
+import { QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChainIcon } from "components/icons/ChainIcon";
 import { useTrack } from "hooks/analytics/useTrack";
 import { useAllChainsData } from "hooks/chains/allChains";
-import { useConfiguredChains } from "hooks/chains/configureChains";
 import { useDebounce } from "hooks/common/useDebounce";
-import { isPossibleEVMAddress } from "lib/address-utils";
-import { getDashboardChainRpc } from "lib/rpc";
-import { getEVMThirdwebSDK } from "lib/sdk";
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FiArrowRight, FiSearch, FiX } from "react-icons/fi";
@@ -40,127 +30,7 @@ import invariant from "tiny-invariant";
 import { Button, Card, Heading, Link, Text } from "tw-components";
 import { shortenIfAddress } from "utils/usedapp-external";
 
-type ContractSearchResult = {
-  address: string;
-  chainId: number;
-  metadata: { name: string; image?: string; symbol?: string };
-  needsImport: boolean;
-};
-
 const TRACKING_CATEGORY = "any_contract_search";
-
-function onChainContractSearchQuery(
-  searchQuery: string,
-  chain: Chain,
-  queryClient: QueryClient,
-  trackEvent: ReturnType<typeof useTrack>,
-) {
-  return {
-    queryKey: [
-      "onchain-contract-search",
-      { chainId: chain.chainId, search: searchQuery },
-    ],
-    queryFn: async () => {
-      trackEvent({
-        category: TRACKING_CATEGORY,
-        action: "query",
-        label: "attempt",
-        searchQuery,
-      });
-      if (!isPossibleEVMAddress(searchQuery)) {
-        throw new Error("Not a valid EVM address");
-      }
-      let address = searchQuery;
-      // if it's an ens address first resolve the real address
-      if (searchQuery?.endsWith(".eth")) {
-        const ensResult = await fetchEns(queryClient, searchQuery);
-        if (!ensResult.address) {
-          throw new Error("Failed to resolve ENS name.");
-        }
-        address = ensResult.address;
-      }
-      // create a new sdk for the given chain (this is cached inside the helper FN so should be fine to just do)
-      const chainSdk = getEVMThirdwebSDK(
-        chain.chainId,
-        getDashboardChainRpc(chain),
-      );
-
-      // check if there is anything on that chain at the address
-      const chainProvider = chainSdk.getProvider();
-      let chainCode: string;
-      try {
-        chainCode = await chainProvider.getCode(address);
-      } catch (err) {
-        // if we fail to get the code just return null
-        return null;
-      }
-
-      const chainHasContract = chainCode && chainCode !== "0x";
-      //  if there's no contract on the chain we can skip it and return null
-      if (!chainHasContract) {
-        return null;
-      }
-      // if there is a contract we now want to try to resolve it, if we can resolve it then we'll return the contract info, otherwise it needs to be imported
-      let result: ContractSearchResult;
-      try {
-        const contract = await chainSdk.getContract(address);
-        try {
-          const metadata = await contract.metadata.get();
-          result = {
-            address,
-            chainId: chain.chainId,
-            metadata,
-            needsImport: false,
-          };
-        } catch (err) {
-          result = {
-            address,
-            chainId: chain.chainId,
-            needsImport: false,
-            metadata: {
-              name: address,
-            },
-          };
-        }
-      } catch (err) {
-        // if we can't resolve the contract we need to import it
-        result = {
-          address,
-          chainId: chain.chainId,
-          needsImport: true,
-          metadata: {
-            name: address,
-          },
-        };
-      }
-      return result;
-    },
-    enabled:
-      isPossibleEVMAddress(searchQuery) && !!chain?.chainId && !!queryClient,
-    refetchOnWindowFocus: false,
-    refetchInterval: 0,
-    refetchOnMount: false,
-    retry: 0,
-    onSuccess: (d: unknown) => {
-      trackEvent({
-        category: TRACKING_CATEGORY,
-        action: "query",
-        label: "success",
-        searchQuery,
-        response: d,
-      });
-    },
-    onError: (err: unknown) => {
-      trackEvent({
-        category: TRACKING_CATEGORY,
-        action: "query",
-        label: "failure",
-        searchQuery,
-        error: err,
-      });
-    },
-  };
-}
 
 const typesenseApiKey =
   process.env.NEXT_PUBLIC_TYPESENSE_CONTRACT_API_KEY || "";
@@ -196,6 +66,8 @@ const getSearchQuery = ({
       walletAddress ? `,_eval(deployer_address:${walletAddress}):desc` : ""
     }`,
   );
+  baseUrl.searchParams.set("facet_by", "chain_id, extensions");
+  baseUrl.searchParams.set("max_facet_values", "100");
 
   if (searchMode === "mainnet") {
     baseUrl.searchParams.set("filter_by", "testnet:false");
@@ -240,23 +112,7 @@ function contractTypesenseSearchQuery(
           },
         },
       );
-      const result = await res.json();
-      trackEvent({
-        category: TRACKING_CATEGORY,
-        action: "query",
-        label: "attempt",
-        searchQuery,
-      });
-      return result.hits.map((hit: any) => {
-        const document = hit.document;
-        return {
-          address: document.contract_address,
-          chainId: document.chain_id,
-          metadata: {
-            name: document.name,
-          },
-        } as ContractSearchResult;
-      }) as ContractSearchResult[];
+      return (await res.json()) as TypesenseResult;
     },
     enabled: !!searchQuery && !!queryClient && !!typesenseApiKey,
     onSuccess: (d: unknown) => {
@@ -280,32 +136,26 @@ function contractTypesenseSearchQuery(
     keepPreviousData: true,
   };
 }
-
-function useContractSearch(searchQuery: string) {
-  const queryClient = useQueryClient();
-  const configureChains = useConfiguredChains();
-  const trackEvent = useTrack();
-  return useQueries({
-    queries: configureChains.map((chain) => {
-      return onChainContractSearchQuery(
-        searchQuery,
-        chain,
-        queryClient,
-        trackEvent,
-      );
-    }),
-  });
-}
-
 type SearchMode = "all" | "mainnet" | "testnet";
 
-export const CmdKSearch: React.FC = () => {
+type UniversalContractSearchProps = {
+  walletAddress?: string;
+  enabkeCmdK?: boolean;
+};
+
+export const UniversalContractSearch: React.FC<
+  UniversalContractSearchProps
+> = ({ walletAddress, enabkeCmdK }) => {
   const [open, setOpen] = useState(false);
   const [searchMode, setSearchMode] = useState<SearchMode>("mainnet");
   const trackEvent = useTrack();
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    // only enable cmd+k if that's a wanted behavior
+    if (!enabkeCmdK) {
+      return;
+    }
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && e.metaKey) {
         setOpen((open_) => !open_);
@@ -314,16 +164,15 @@ export const CmdKSearch: React.FC = () => {
 
     document.addEventListener("keydown", down);
     return () => document.removeEventListener("keydown", down);
-  }, []);
+  }, [enabkeCmdK]);
 
   const [searchValue, setSearchValue] = useState("");
-
-  const walletAddress = useAddress();
-
   // debounce 500ms
   const debouncedSearchValue = useDebounce(searchValue, 500);
 
-  const typesenseSearchQuery = useQuery<ContractSearchResult[]>(
+  const [facetStates, setFacetStates] = useState<Record<string, string[]>>({});
+
+  const typesenseSearchQuery = useQuery<TypesenseResult>(
     contractTypesenseSearchQuery(
       debouncedSearchValue,
       walletAddress,
@@ -332,42 +181,6 @@ export const CmdKSearch: React.FC = () => {
       trackEvent,
     ),
   );
-  const searchQueryResponses = useContractSearch(debouncedSearchValue);
-
-  const data = useMemo(() => {
-    const potentiallyDuplicated = [
-      ...(typesenseSearchQuery.data || []),
-      ...searchQueryResponses.map((r) => r.data),
-    ].filter((d) => !!d) as ContractSearchResult[];
-
-    // dedupe the results
-    return Array.from(
-      new Set(potentiallyDuplicated.map((d) => `${d.chainId}_${d.address}`)),
-    ).map((chainIdAndAddress) => {
-      return potentiallyDuplicated.find((d) => {
-        return `${d.chainId}_${d.address}` === chainIdAndAddress;
-      });
-    }) as ContractSearchResult[];
-  }, [searchQueryResponses, typesenseSearchQuery]);
-
-  const isFetching = useMemo(() => {
-    return (
-      typesenseSearchQuery.isFetching ||
-      debouncedSearchValue !== searchValue ||
-      searchQueryResponses.some((r) => r.isFetching)
-    );
-  }, [
-    debouncedSearchValue,
-    searchQueryResponses,
-    searchValue,
-    typesenseSearchQuery.isFetching,
-  ]);
-
-  const error = useMemo(() => {
-    return !isFetching && !data.length
-      ? searchQueryResponses.find((r) => r.error)?.error
-      : undefined;
-  }, [data.length, isFetching, searchQueryResponses]);
 
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -381,10 +194,15 @@ export const CmdKSearch: React.FC = () => {
 
   useEffect(() => {
     // re-set the active index if we are fetching
-    if (isFetching && !data.length) {
+    if (typesenseSearchQuery.isFetching) {
       setActiveIndex(0);
     }
-  }, [data.length, isFetching]);
+  }, [typesenseSearchQuery.isFetching]);
+
+  const documents = useMemo(
+    () => typesenseSearchQuery.data?.hits.map((h) => h.document) || [],
+    [typesenseSearchQuery.data?.hits],
+  );
 
   useEffect(() => {
     // only if the modal is open
@@ -393,21 +211,17 @@ export const CmdKSearch: React.FC = () => {
     }
     const down = (e: KeyboardEvent) => {
       // if something is selected and we press enter or space we should go to the contract
-      if (e.key === "Enter" && data) {
-        const result = data[activeIndex];
+      if (e.key === "Enter" && documents) {
+        const result = documents[activeIndex];
         if (result) {
           e.preventDefault();
-          router.push(
-            `/${result.chainId}/${result.address}${
-              result.needsImport ? "?import=true" : ""
-            }`,
-          );
+          router.push(`/${result.chain_id}/${result.contract_address}`);
           trackEvent({
             category: TRACKING_CATEGORY,
             action: "select_contract",
             input_mode: "keyboard",
-            chainId: result.chainId,
-            contract_address: result.address,
+            chainId: result.chain_id,
+            contract_address: result.contract_address,
           });
           handleClose();
         }
@@ -415,8 +229,8 @@ export const CmdKSearch: React.FC = () => {
         // if we press down we should move the selection down
         e.preventDefault();
         setActiveIndex((aIndex) => {
-          if (data) {
-            return Math.min(aIndex + 1, data.length - 1);
+          if (documents) {
+            return Math.min(aIndex + 1, documents.length - 1);
           }
           return aIndex;
         });
@@ -428,7 +242,7 @@ export const CmdKSearch: React.FC = () => {
     };
     document.addEventListener("keydown", down);
     return () => document.removeEventListener("keydown", down);
-  }, [activeIndex, data, handleClose, open, router, trackEvent]);
+  }, [activeIndex, documents, handleClose, open, router, trackEvent]);
 
   return (
     <>
@@ -444,11 +258,13 @@ export const CmdKSearch: React.FC = () => {
           borderColor="borderColor"
           placeholder="Search any contract"
         />
-        <InputRightElement w="auto" pr={2} as={Flex} gap={1}>
-          <Text size="body.sm" color="chakra-placeholder-color">
-            ⌘K
-          </Text>
-        </InputRightElement>
+        {enabkeCmdK && (
+          <InputRightElement w="auto" pr={2} as={Flex} gap={1}>
+            <Text size="body.sm" color="chakra-placeholder-color">
+              ⌘K
+            </Text>
+          </InputRightElement>
+        )}
       </InputGroup>
       <IconButton
         aria-label="Search any contract"
@@ -476,7 +292,7 @@ export const CmdKSearch: React.FC = () => {
               onChange={(e) => setSearchValue(e.target.value)}
             />
             <InputRightElement>
-              {isFetching ? (
+              {typesenseSearchQuery.isFetching ? (
                 <Spinner size="sm" />
               ) : searchValue.length > 0 ? (
                 <IconButton
@@ -490,11 +306,49 @@ export const CmdKSearch: React.FC = () => {
             </InputRightElement>
           </InputGroup>
 
-          {searchValue.length > 0 && (!isFetching || data.length) ? (
+          {searchValue.length > 0 &&
+          (!typesenseSearchQuery.isFetching || documents?.length) ? (
             <Flex px={2} direction="column">
               <Divider borderColor="borderColor" />
 
-              <ButtonGroup size="xs" my={2}>
+              <Flex my={2} gap={2}>
+                {typesenseSearchQuery.data?.facet_counts.map((facetCount) => {
+                  return (
+                    <FacetFilter
+                      key={facetCount.field_name}
+                      name={facetCount.field_name}
+                      facetGroups={[
+                        {
+                          title: "Network Types",
+                          allOnly: true,
+                          values: facetCount.counts.map((c) => ({
+                            value: [c.value],
+                          })),
+                        },
+                        {
+                          title: "Networks",
+                          allOnly: false,
+                          values: facetCount.counts.map((c) => ({
+                            value: [c.value],
+                          })),
+                        },
+                      ]}
+                      selectedValues={
+                        facetStates[facetCount.field_name] ||
+                        facetCount.counts.map((c) => c.value)
+                      }
+                      onChange={(values) => {
+                        setFacetStates((s) => ({
+                          ...s,
+                          [facetCount.field_name]: values,
+                        }));
+                      }}
+                    />
+                  );
+                })}
+              </Flex>
+
+              {/* <ButtonGroup size="xs" my={2}>
                 <Button
                   variant={searchMode === "all" ? "solid" : "ghost"}
                   onClick={() => {
@@ -519,28 +373,28 @@ export const CmdKSearch: React.FC = () => {
                 >
                   Testnet
                 </Button>
-              </ButtonGroup>
+              </ButtonGroup> */}
 
               <Flex py={2}>
-                {error ? (
+                {typesenseSearchQuery.error ? (
                   <Text
                     p={3}
                     color="red.400"
                     _light={{ color: "red.600" }}
                     size="label.md"
                   >
-                    {(error as Error).message}
+                    {(typesenseSearchQuery.error as Error).message}
                   </Text>
-                ) : !data || data?.length === 0 ? (
+                ) : !documents || documents?.length === 0 ? (
                   <Text p={3} size="label.md">
                     No contracts found.
                   </Text>
                 ) : (
                   <Flex direction="column" w="full">
-                    {data.map((result, idx) => {
+                    {documents.map((result, idx) => {
                       return (
                         <SearchResult
-                          key={`${result.chainId}_${result.address}`}
+                          key={`${result.chain_id}_${result.contract_address}`}
                           result={result}
                           isActive={idx === activeIndex}
                           onClick={() => {
@@ -549,8 +403,8 @@ export const CmdKSearch: React.FC = () => {
                               category: TRACKING_CATEGORY,
                               action: "select_contract",
                               input_mode: "click",
-                              chainId: result.chainId,
-                              contract_address: result.address,
+                              chainId: result.chain_id,
+                              contract_address: result.contract_address,
                             });
                           }}
                           onMouseEnter={() => setActiveIndex(idx)}
@@ -569,7 +423,7 @@ export const CmdKSearch: React.FC = () => {
 };
 
 interface SearchResultProps {
-  result: ContractSearchResult;
+  result: SearchDocument;
   isActive: boolean;
   onMouseEnter: () => void;
   onClick: () => void;
@@ -583,7 +437,7 @@ const SearchResult: React.FC<SearchResultProps> = ({
 }) => {
   const { chainIdToChainRecord } = useAllChainsData();
 
-  const chain = chainIdToChainRecord[result.chainId];
+  const chain = chainIdToChainRecord[parseInt(result.chain_id)];
 
   // not able to resolve chain...
   if (!chain) {
@@ -611,19 +465,17 @@ const SearchResult: React.FC<SearchResultProps> = ({
         <LinkOverlay
           textDecor="none!important"
           as={Link}
-          href={`/${chain.slug}/${result.address}${
-            result.needsImport ? "?import=true" : ""
-          }`}
+          href={`/${chain.slug}/${result.contract_address}`}
           onMouseEnter={onMouseEnter}
           onClick={onClick}
           size="label.xl"
         >
           <Heading as="h3" size="label.lg">
-            {shortenIfAddress(result.metadata.name)}
+            {shortenIfAddress(result.name)}
           </Heading>
         </LinkOverlay>
         <Heading pointerEvents="none" as="h4" opacity={0.6} size="subtitle.xs">
-          {chain.name} - {shortenIfAddress(result.address)}
+          {chain.name} - {shortenIfAddress(result.contract_address)}
         </Heading>
       </Flex>
       <Flex ml="auto" align="center" gap={3} flexShrink={0}>

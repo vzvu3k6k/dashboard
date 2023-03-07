@@ -1,9 +1,10 @@
 import { ConnectWallet } from "@3rdweb-sdk/react/components/connect-wallet";
 import { Container, Flex, Grid, GridItem, Icon } from "@chakra-ui/react";
 import { Ethereum, Solana } from "@thirdweb-dev/chain-icons";
-import { CmdKSearch } from "components/cmd-k-search";
+import { useAddress } from "@thirdweb-dev/react";
 import { ColorModeToggle } from "components/color-mode/color-mode-toggle";
 import { Logo } from "components/logo";
+import { UniversalContractSearch } from "components/universal-contract-search";
 import { SIDEBAR_TUNNEL_ID } from "core-ui/sidebar/tunnel";
 import { useRouter } from "next/router";
 import { FiFile, FiGlobe, FiHelpCircle } from "react-icons/fi";
@@ -71,6 +72,8 @@ const AppHeader: React.FC<Pick<AppShellProps, "ecosystem">> = ({
 }) => {
   const { pathname, route } = useRouter();
 
+  const walletAddress = useAddress();
+
   return (
     <GridItem
       colSpan={{ base: 2, md: 2 }}
@@ -89,7 +92,7 @@ const AppHeader: React.FC<Pick<AppShellProps, "ecosystem">> = ({
           <Link href="/dashboard">
             <Logo hideWordmark />
           </Link>
-          <CmdKSearch />
+          <UniversalContractSearch enabkeCmdK walletAddress={walletAddress} />
         </Flex>
         <Flex align="center" gap={2} marginLeft="auto">
           <Button
