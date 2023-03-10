@@ -1,7 +1,6 @@
 import {
   ConnectWallet,
-  EcosystemButtonprops,
-  useNetworkWithPatchedSwitching,
+  ConnectWalletProps,
 } from "@3rdweb-sdk/react/components/connect-wallet";
 import {
   Box,
@@ -18,12 +17,15 @@ import { AiOutlineWarning } from "@react-icons/all-files/ai/AiOutlineWarning";
 import { useWallet } from "@solana/wallet-adapter-react";
 import {
   ChainId,
+  useActiveChain,
   useAddress,
   useBalance,
   useChainId,
+  useConnectionStatus,
   useNetworkMismatch,
   useSDK,
   useSDKChainId,
+  useSwitchChain,
 } from "@thirdweb-dev/react";
 import {
   useBalance as useSolBalance,
@@ -38,7 +40,7 @@ import { Button, Card, Heading, Text } from "tw-components";
 
 export const MismatchButton = React.forwardRef<
   HTMLButtonElement,
-  EcosystemButtonprops
+  ConnectWalletProps
 >(
   (
     {
@@ -185,7 +187,10 @@ const MismatchNotice: React.FC<{
 }> = ({ initialFocusRef, onClose }) => {
   const connectedChainId = useChainId();
   const desiredChainId = useSDKChainId();
-  const [network, switchNetwork] = useNetworkWithPatchedSwitching();
+  const network = useActiveChain();
+  const switchNetwork = useSwitchChain();
+  const connectionStatus = useConnectionStatus();
+  // const [network, switchNetwork] = useNetworkWithPatchedSwitching();
   const actuallyCanAttemptSwitch = !!switchNetwork;
   const walletConnectedNetworkInfo = useConfiguredChain(connectedChainId || -1);
 
@@ -224,7 +229,9 @@ const MismatchNotice: React.FC<{
         leftIcon={<Icon as={VscDebugDisconnect} />}
         size="sm"
         onClick={onSwitchWallet}
-        isLoading={network.loading}
+        isLoading={
+          connectionStatus === "connecting" || connectionStatus === "unknown"
+        }
         isDisabled={!actuallyCanAttemptSwitch}
         colorScheme="orange"
         textTransform="capitalize"

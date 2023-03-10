@@ -40,6 +40,8 @@ const redirects = require("./redirects");
 
 /** @type {import('next').NextConfig} */
 const moduleExports = {
+  transpilePackages: ["@thirdweb-dev/react"],
+
   async headers() {
     return [
       {
@@ -77,6 +79,7 @@ const moduleExports = {
   reactStrictMode: true,
   experimental: {
     scrollRestoration: true,
+    esmExternals: "loose",
   },
   compiler: {
     emotion: true,
@@ -89,14 +92,13 @@ const withBundleAnalyzer = require("@next/bundle-analyzer")({
 });
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { withSentryConfig } = require("@sentry/nextjs");
+// const { withSentryConfig } = require("@sentry/nextjs");
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { withPlausibleProxy } = require("next-plausible");
 
 // we only want sentry on production enviroments
-const wSentry =
-  process.env.NODE_ENV === "production" ? withSentryConfig : (x) => x;
+const wSentry = (x) => x;
 
 module.exports = withPlausibleProxy({
   customDomain: "https://pl.thirdweb.com",

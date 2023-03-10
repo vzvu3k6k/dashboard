@@ -1,20 +1,17 @@
 import { MismatchButton } from "./MismatchButton";
-import type { EcosystemButtonprops } from "@3rdweb-sdk/react/components/connect-wallet";
+import type { ConnectWalletProps } from "@3rdweb-sdk/react/components/connect-wallet";
 import {
   Center,
   DarkMode,
   Flex,
   Icon,
   Popover,
-  PopoverArrow,
-  PopoverBody,
-  PopoverContent,
   PopoverTrigger,
   Tooltip,
   useColorMode,
 } from "@chakra-ui/react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useAccount, useAddress, useChainId } from "@thirdweb-dev/react";
+import { useAddress, useChainId } from "@thirdweb-dev/react";
 import { CHAIN_ID_TO_GNOSIS } from "constants/mappings";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { BiTransferAlt } from "react-icons/bi";
@@ -22,7 +19,7 @@ import { FiInfo } from "react-icons/fi";
 import { Button, Card, Heading, LinkButton, Text } from "tw-components";
 
 export interface TransactionButtonProps
-  extends Omit<EcosystemButtonprops, "leftIcon"> {
+  extends Omit<ConnectWalletProps, "leftIcon"> {
   transactionCount: number;
   isLoading: boolean;
   isGasless?: boolean;
@@ -40,13 +37,15 @@ export const TransactionButton: React.FC<TransactionButtonProps> = ({
   ...restButtonProps
 }) => {
   const colorMode = useColorMode();
-  const [{ data }] = useAccount();
-  const connectorRequiresExternalConfirmation = useMemo(() => {
-    return (
-      data?.connector?.id === "gnosis" ||
-      data?.connector?.id === "walletConnect"
-    );
-  }, [data?.connector?.id]);
+  // const [{ data }] = useAccount();
+  // const connectorRequiresExternalConfirmation = useMemo(() => {
+  //   return (
+  //     data?.connector?.id === "gnosis" ||
+  //     data?.connector?.id === "walletConnect"
+  //   );
+  // }, [data?.connector?.id]);
+
+  const connectorRequiresExternalConfirmation = false;
 
   const initialFocusRef = useRef<HTMLButtonElement>(null);
 
@@ -155,7 +154,7 @@ export const TransactionButton: React.FC<TransactionButtonProps> = ({
           </Tooltip>
         </ButtonComponent>
       </PopoverTrigger>
-      <Card
+      {/* <Card
         maxW="sm"
         w="auto"
         as={PopoverContent}
@@ -170,7 +169,7 @@ export const TransactionButton: React.FC<TransactionButtonProps> = ({
             initialFocusRef={initialFocusRef}
           />
         </PopoverBody>
-      </Card>
+      </Card> */}
     </Popover>
   );
 };
